@@ -14,7 +14,7 @@ const AsyvAvatar = ({
     lg: 'h-12 w-12 text-lg',
     xl: 'h-16 w-16 text-xl'
   };
-
+ 
   const getInitials = (name) => {
     if (!name) return '';
     const names = name.split(' ');
