@@ -1,7 +1,7 @@
 import React from 'react';
 import { ChevronDown, AlertCircle } from 'lucide-react';
 
-const Select = ({
+export const Select = ({
   label,
   options = [],
   value,

@@ -84,7 +84,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-const AuthContext = createContext(null);
+export const AuthContext = createContext(null);
 
 // Dummy user data
 const DUMMY_USERS = [

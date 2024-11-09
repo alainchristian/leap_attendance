@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 
-const Input = ({
+export const Input = ({
   label,
   type = 'text',
   placeholder,

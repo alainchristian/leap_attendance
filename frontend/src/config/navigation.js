@@ -1,4 +1,3 @@
-// src/config/navigation.js
 import {
   Home,
   Users,
@@ -15,7 +14,12 @@ import {
   BookOpen,
   CalendarDays,
   FileText,
-  Bell
+  Bell,
+  Building2,
+  User,
+  Shield,
+  UserCog,
+  Home as HomeIcon
 } from 'lucide-react';
 
 export const navigation = [
@@ -25,6 +29,16 @@ export const navigation = [
       icon: Home,
       current: true,
       permission: null // Everyone can access dashboard
+  },
+  {
+      name: 'Family',
+      icon: HomeIcon,
+      current: false,
+      permission: 'manage families',
+      subItems: [
+          { name: 'All Families', href: '/families', icon: Building2, permission: 'view families' },
+          { name: 'Add Family', href: '/families/create', icon: FolderOpen, permission: 'create families' }
+      ]
   },
   {
       name: 'Students',
@@ -84,13 +98,15 @@ export const navigation = [
       ]
   },
   {
-      name: 'Settings',
+      name: 'System',
       icon: Settings,
       current: false,
       permission: 'manage settings',
       subItems: [
-          { name: 'General Settings', href: '/settings', icon: Settings, permission: 'manage settings' },
-          { name: 'User Management', href: '/settings/users', icon: Users, permission: 'manage users' },
+          { name: 'User Management', href: '/settings/users', icon: User, permission: 'manage users' }, // Updated path
+          { name: 'User Roles', href: '/settings/roles', icon: Shield, permission: 'manage roles' }, // Updated path
+          { name: 'User Permissions', href: '/settings/permissions', icon: UserCog, permission: 'manage permissions' }, // Updated path
+          { name: 'General Settings', href: '/settings/general', icon: Settings, permission: 'manage settings' },
           { name: 'Notifications', href: '/settings/notifications', icon: Bell, permission: 'manage settings' }
       ]
   }

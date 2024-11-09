@@ -1,249 +1,146 @@
-// src/components/users/UserForm.jsx
-import React, { useState, useEffect } from 'react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import axios from 'axios';
+import React from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Input } from '../common/Input';
+import { Select } from '../common/Select';
+import { Button } from '../common/Button';
 
-const formSchema = z.object({
-  firstName: z.string().min(2).max(50),
-  lastName: z.string().min(2).max(50),
-  email: z.string().email(),
-  password: z.string().min(6).optional(),
-  gender: z.enum(['Male', 'Female']),
-  userType: z.enum(['Admin', 'Teacher', 'Supervisor']),
-  roles: z.array(z.number()).min(1),
-  isActive: z.boolean().optional()
+const schema = z.object({
+    firstName: z.string().min(2, 'First name is required'),
+    lastName: z.string().min(2, 'Last name is required'),
+    email: z.string().email('Invalid email address'),
+    userType: z.enum(['Admin', 'Teacher', 'Supervisor']),
+    gender: z.enum(['Male', 'Female']),
+    password: z.string().min(6, 'Password must be at least 6 characters').optional(),
+    confirmPassword: z.string().optional()
+}).refine((data) => {
+    if (data.password || data.confirmPassword) {
+        return data.password === data.confirmPassword;
+    }
+    return true;
+}, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
 });
 
-const UserForm = ({ user, onSubmit, onCancel }) => {
-  const [roles, setRoles] = useState([]);
-  const [loading, setLoading] = useState(false);
+const UserForm = ({ initialData, onSubmit, onCancel }) => {
+    const { 
+        register, 
+        handleSubmit, 
+        formState: { errors, isSubmitting },
+        watch 
+    } = useForm({
+        resolver: zodResolver(schema),
+        defaultValues: initialData || {
+            firstName: '',
+            lastName: '',
+            email: '',
+            userType: 'Supervisor',
+            gender: 'Male'
+        }
+    });
 
-  const form = useForm({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      firstName: user?.firstName || '',
-      lastName: user?.lastName || '',
-      email: user?.email || '',
-      password: '',
-      gender: user?.gender || '',
-      userType: user?.userType || '',
-      roles: user?.roles?.map(r => r.id) || [],
-      isActive: user?.isActive ?? true
-    }
-  });
+    const handleFormSubmit = async (data) => {
+        // Remove confirm password from submission
+        const { confirmPassword, ...submitData } = data;
+        // Remove password if it's empty (for editing)
+        if (!submitData.password) {
+            delete submitData.password;
+        }
+        await onSubmit(submitData);
+    };
 
-  useEffect(() => {
-    fetchRoles();
-  }, []);
+    return (
+        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div>
+                    <Input
+                        label="First Name"
+                        {...register('firstName')}
+                        error={errors.firstName?.message}
+                    />
+                </div>
+                <div>
+                    <Input
+                        label="Last Name"
+                        {...register('lastName')}
+                        error={errors.lastName?.message}
+                    />
+                </div>
+            </div>
 
-  const fetchRoles = async () => {
-    try {
-      const response = await axios.get('/api/roles');
-      setRoles(response.data.data);
-    } catch (error) {
-      console.error('Failed to fetch roles:', error);
-    }
-  };
+            <div>
+                <Input
+                    label="Email"
+                    type="email"
+                    {...register('email')}
+                    error={errors.email?.message}
+                />
+            </div>
 
-  const handleSubmit = async (data) => {
-    setLoading(true);
-    try {
-      // If no password is provided during edit, remove it from the data
-      if (!data.password && user) {
-        delete data.password;
-      }
-      await onSubmit(data, !!user);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Card className="mb-6">
-      <CardHeader>
-        <CardTitle>{user ? 'Edit User' : 'Create New User'}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>First Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Last Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{user ? 'New Password (optional)' : 'Password'}</FormLabel>
-                    <FormControl>
-                      <Input type="password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="gender"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Gender</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Male">Male</SelectItem>
-                        <SelectItem value="Female">Female</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="userType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>User Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select user type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Admin">Admin</SelectItem>
-                        <SelectItem value="Teacher">Teacher</SelectItem>
-                        <SelectItem value="Supervisor">Supervisor</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="roles"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Roles</FormLabel>
-                    <Select 
-                      onValueChange={(value) => field.onChange([parseInt(value)])}
-                      defaultValue={field.value?.[0]?.toString()}
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div>
+                    <Select
+                        label="Role"
+                        {...register('userType')}
+                        error={errors.userType?.message}
                     >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select role" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {roles.map(role => (
-                          <SelectItem key={role.id} value={role.id.toString()}>
-                            {role.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
+                        <option value="Admin">Admin</option>
+                        <option value="Teacher">Teacher</option>
+                        <option value="Supervisor">Supervisor</option>
                     </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                </div>
+                <div>
+                    <Select
+                        label="Gender"
+                        {...register('gender')}
+                        error={errors.gender?.message}
+                    >
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                    </Select>
+                </div>
             </div>
 
-            <div className="flex justify-end space-x-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onCancel}
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                className="bg-asyv-green hover:bg-asyv-green-dark"
-                disabled={loading}
-              >
-                {loading ? 'Saving...' : (user ? 'Update User' : 'Create User')}
-              </Button>
+            {(!initialData || watch('password')) && (
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div>
+                        <Input
+                            label={initialData ? "New Password (leave blank to keep current)" : "Password"}
+                            type="password"
+                            {...register('password')}
+                            error={errors.password?.message}
+                        />
+                    </div>
+                    <div>
+                        <Input
+                            label="Confirm Password"
+                            type="password"
+                            {...register('confirmPassword')}
+                            error={errors.confirmPassword?.message}
+                        />
+                    </div>
+                </div>
+            )}
+
+            <div className="flex justify-end space-x-4">
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={onCancel}
+                >
+                    Cancel
+                </Button>
+                <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                >
+                    {isSubmitting ? 'Saving...' : (initialData ? 'Update User' : 'Create User')}
+                </Button>
             </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
-  );
+        </form>
+    );
 };
 
 export default UserForm;

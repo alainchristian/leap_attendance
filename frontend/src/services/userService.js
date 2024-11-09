@@ -1,4 +1,3 @@
-// src/services/userService.js
 import axios from 'axios';
 
 class UserService {
@@ -56,4 +55,9 @@ class UserService {
     }
 }
 
-export const userService = new UserService();
+// Create instance
+const userService = new UserService();
+
+// Export both named and default
+export { userService };
+export default userService;
