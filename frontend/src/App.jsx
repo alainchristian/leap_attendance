@@ -1,10 +1,14 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/auth.context';
 import DashboardLayout from './layouts/DashboardLayout';
 import LoginPage from './pages/auth/Login';
 import Dashboard from './pages/dashboard/Dashboard';
-import Users from './pages/settings/index';
+import UnauthorizedPage from './pages/error/Unauthorized';
+import { PERMISSIONS } from './utils/permissions';
+
+// Lazy loaded components
+const Users = React.lazy(() => import('./pages/settings/index'));
 
 // Loading component
 const LoadingSpinner = () => (
@@ -14,8 +18,8 @@ const LoadingSpinner = () => (
 );
 
 // Protected Layout Component
-const ProtectedLayout = () => {
-  const { isAuthenticated, loading } = useAuth();
+const ProtectedLayout = ({ permission, permissions, requireAll = false }) => {
+  const { isAuthenticated, loading, hasPermission, hasAnyPermission, hasAllPermissions } = useAuth();
 
   if (loading) {
     return <LoadingSpinner />;
@@ -23,6 +27,22 @@ const ProtectedLayout = () => {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Check specific permission
+  if (permission && !hasPermission(permission)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  // Check multiple permissions
+  if (permissions) {
+    const hasAccess = requireAll
+      ? hasAllPermissions(permissions)
+      : hasAnyPermission(permissions);
+
+    if (!hasAccess) {
+      return <Navigate to="/unauthorized" replace />;
+    }
   }
 
   return (
@@ -46,7 +66,7 @@ const AppRoutes = () => {
 
   return (
     <Routes>
-      {/* Public Route */}
+      {/* Public Routes */}
       <Route
         path="/login"
         element={
@@ -57,6 +77,7 @@ const AppRoutes = () => {
           )
         }
       />
+      <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
       {/* Protected Routes */}
       <Route element={<ProtectedLayout />}>
@@ -64,19 +85,21 @@ const AppRoutes = () => {
         <Route path="/dashboard" element={<Dashboard />} />
         
         {/* Settings Routes */}
-        <Route path="/settings">
-          <Route 
-            path="users" 
+        <Route 
+          element={<ProtectedLayout permission={PERMISSIONS.USER_VIEW} />}
+        >
+          <Route
+            path="/settings/users"
             element={
               <Suspense fallback={<LoadingSpinner />}>
                 <Users />
               </Suspense>
-            } 
+            }
           />
         </Route>
       </Route>
 
-      {/* Catch all route */}
+      {/* Catch all */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );

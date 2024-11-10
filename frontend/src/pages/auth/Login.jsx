@@ -131,21 +131,7 @@ const LoginPage = ({ onLogin }) => {
           Sign in
         </Button>
 
-        {/* Demo credentials notice */}
-        <div className="bg-blue-50 rounded-lg p-4 mt-6">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <InfoIcon className="h-5 w-5 text-blue-400" />
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-blue-800">Demo Credentials</h3>
-              <div className="mt-2 text-sm text-blue-700">
-                <p>Admin User: admin@asyv.com / admin123</p>
-                <p>Teacher: teacher@asyv.com / teacher123</p>
-              </div>
-            </div>
-          </div>
-        </div>
+     
       </form>
     </AuthLayout>
   );

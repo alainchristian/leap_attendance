@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { 
+import {
   LogOut,
   Menu,
   X,
   Bell,
   Search,
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth.context';
 import { navigation } from '../config/navigation';
 import AsyvAvatar from '../components/avatars/AsyvAvatar';
 import UserProfileDropdown from '../components/user/UserProfileDropdown';
@@ -42,9 +42,9 @@ const DashboardLayout = ({ children }) => {
 
   const LogoSection = () => (
     <div className="flex items-center">
-      <AsyvAvatar 
+      <AsyvAvatar
         size="md"
-        className="border-2 border-white" 
+        className="border-2 border-white"
       />
       <span className="ml-2 text-white font-semibold">ASYV LEAP</span>
     </div>
@@ -70,13 +70,13 @@ const DashboardLayout = ({ children }) => {
       </div>
       <div className="flex-shrink-0 flex border-t border-asyv-green p-4">
         <div className="flex items-center w-full">
-          <AsyvAvatar 
-            user={user} 
+          <AsyvAvatar
+            user={user}
             size="md"
-            className="border-2 border-white" 
+            className="border-2 border-white"
           />
           <div className="ml-3 flex-1">
-            <p className="text-sm font-medium text-white">{user?.name}</p>
+            <p className="text-sm font-medium text-white"> {user ? `${user.firstName} ${user.lastName}` : ''}</p>
             <button
               onClick={logout}
               className="flex items-center text-xs text-asyv-green-light hover:text-white"
@@ -90,10 +90,11 @@ const DashboardLayout = ({ children }) => {
     </>
   );
 
+
   return (
     <div className="h-screen flex overflow-hidden bg-gray-50">
       {/* Mobile sidebar */}
-      <div 
+      <div
         className={`
           fixed inset-0 z-50 lg:hidden
           ${sidebarOpen ? 'visible' : 'invisible'}
@@ -101,7 +102,7 @@ const DashboardLayout = ({ children }) => {
         `}
       >
         {/* Backdrop */}
-        <div 
+        <div
           className={`
             fixed inset-0 bg-gray-600
             ${sidebarOpen ? 'bg-opacity-75' : 'bg-opacity-0'}
@@ -109,9 +110,9 @@ const DashboardLayout = ({ children }) => {
           `}
           onClick={() => setSidebarOpen(false)}
         />
-        
+
         {/* Sidebar panel */}
-        <div 
+        <div
           className={`
             fixed inset-y-0 left-0 flex flex-col w-full max-w-xs sm:max-w-sm
             bg-asyv-green-dark transform transition-transform duration-300
@@ -153,15 +154,16 @@ const DashboardLayout = ({ children }) => {
             <span className="sr-only">Open sidebar</span>
             <Menu className="h-6 w-6" />
           </button>
-          
+
           <div className="flex-1 px-4 flex items-center justify-between">
             <SearchBar />
-            
+
             <div className="ml-4 flex items-center space-x-4">
               <button className="p-1 rounded-full text-gray-400 hover:text-asyv-green focus:outline-none">
                 <span className="sr-only">View notifications</span>
                 <Bell className="h-6 w-6" />
               </button>
+              
               <div className="border-l border-gray-200 h-6" />
               <UserProfileDropdown user={user} onLogout={logout} />
             </div>

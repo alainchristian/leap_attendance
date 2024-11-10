@@ -1,4 +1,3 @@
-// src/controllers/auth.controller.js
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { User, Role, Permission } = require('../models');
@@ -23,12 +22,20 @@ class AuthController {
             if (!user || !(await bcrypt.compare(password, user.password))) {
                 return res.status(401).json({
                     success: false,
-                    message: 'Invalid credentials'
+                    message: 'Invalid email or password'
+                });
+            }
+
+            // Check if user is active
+            if (!user.isActive) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Your account is inactive'
                 });
             }
 
             const token = jwt.sign(
-                { 
+                {
                     id: user.id,
                     email: user.email,
                     roles: user.roles.map(role => role.name)
@@ -45,10 +52,14 @@ class AuthController {
                     email: user.email,
                     firstName: user.firstName,
                     lastName: user.lastName,
+                    userType: user.userType,
+                    isActive: user.isActive,
                     roles: user.roles.map(role => ({
                         name: role.name,
                         permissions: role.permissions.map(p => p.name)
-                    }))
+                    })),
+                    name: `${user.firstName} ${user.lastName}`,
+                    rolesString: user.roles.map(role => role.name).join(', ') // Added as a comma-separated string
                 }
             });
         } catch (error) {
@@ -81,6 +92,14 @@ class AuthController {
                 });
             }
 
+            // Check if user is still active
+            if (!user.isActive) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Your account has been deactivated'
+                });
+            }
+
             res.json({
                 success: true,
                 user: {
@@ -88,6 +107,8 @@ class AuthController {
                     email: user.email,
                     firstName: user.firstName,
                     lastName: user.lastName,
+                    userType: user.userType,
+                    isActive: user.isActive,
                     roles: user.roles.map(role => ({
                         name: role.name,
                         permissions: role.permissions.map(p => p.name)
@@ -99,6 +120,23 @@ class AuthController {
             res.status(500).json({
                 success: false,
                 message: 'Error fetching user data'
+            });
+        }
+    }
+
+    // Add logout handler (optional since we're using JWT)
+    async logout(req, res) {
+        try {
+            // You could implement token blacklisting here if needed
+            res.json({
+                success: true,
+                message: 'Logged out successfully'
+            });
+        } catch (error) {
+            console.error('Logout error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Error during logout'
             });
         }
     }
