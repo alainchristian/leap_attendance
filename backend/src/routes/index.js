@@ -44,5 +44,11 @@ router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 // router.use('/families', familyRoutes);
 // router.use('/students', studentRoutes);
+router.get('/test', (req, res) => {
+    res.json({
+        success: true,
+        message: 'Test route is working'
+    });
+});
 
 module.exports = router;

@@ -1,4 +1,7 @@
-import api from '../utils/api';
+// src/services/authService.js
+import api from './api';
+
+const TOKEN_KEY = '@ASYVAuth:token';
 
 const authService = {
     login: async (credentials) => {
@@ -6,17 +9,14 @@ const authService = {
             const response = await api.post('/auth/login', credentials);
             
             if (response.data.success) {
-                // Store token and user data
-                localStorage.setItem('token', response.data.token);
-                localStorage.setItem('user', JSON.stringify(response.data.user));
+                const { token, user } = response.data;
+                localStorage.setItem(TOKEN_KEY, token);
+                api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                return { success: true, user };
             }
-            
-            return response.data;
+            return { success: false };
         } catch (error) {
-            throw {
-                message: error.response?.data?.message || 'Login failed',
-                errors: error.response?.data?.errors
-            };
+            throw new Error(error.response?.data?.message || 'Login failed');
         }
     },
 
@@ -24,53 +24,23 @@ const authService = {
         try {
             await api.post('/auth/logout');
         } finally {
-            // Always clear local storage
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
+            localStorage.removeItem(TOKEN_KEY);
+            delete api.defaults.headers.common['Authorization'];
         }
     },
 
     getCurrentUser: async () => {
         try {
             const response = await api.get('/auth/me');
-            if (response.data.success) {
-                localStorage.setItem('user', JSON.stringify(response.data.user));
-            }
             return response.data;
         } catch (error) {
-            throw {
-                message: error.response?.data?.message || 'Failed to get user data',
-                errors: error.response?.data?.errors
-            };
+            throw new Error(error.response?.data?.message || 'Failed to get user data');
         }
     },
 
-    hasPermission: (permission) => {
-        const user = JSON.parse(localStorage.getItem('user'));
-        if (!user || !user.roles) return false;
-        
-        return user.roles.some(role => 
-            role.permissions?.includes(permission)
-        );
-    },
+    getToken: () => localStorage.getItem(TOKEN_KEY),
 
-    hasRole: (roleName) => {
-        const user = JSON.parse(localStorage.getItem('user'));
-        if (!user || !user.roles) return false;
-        
-        return user.roles.some(role => role.name === roleName);
-    },
-
-    getToken: () => localStorage.getItem('token'),
-    
-    getUser: () => {
-        const user = localStorage.getItem('user');
-        return user ? JSON.parse(user) : null;
-    },
-
-    isAuthenticated: () => {
-        return !!localStorage.getItem('token');
-    }
+    isAuthenticated: () => !!localStorage.getItem(TOKEN_KEY)
 };
 
 export default authService;
