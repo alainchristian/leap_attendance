@@ -1,286 +1,352 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
-import { useForm } from 'react-hook-form';
+import { 
+  UserCircle, 
+  Mail, 
+  Key, 
+  Shield, 
+  UserCog,
+  X
+} from 'lucide-react';
+import Button from '../common/Button';
 
-const USER_TYPES = ['Admin', 'Teacher', 'Supervisor'];
-const ROLES = ['Admin', 'Teacher', 'Supervisor'];
-const GENDERS = ['Male', 'Female'];
-
-const UserFormModal = ({ user, onClose, onSuccess }) => {
-  const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
-  const isEditing = !!user;
-
-  const form = useForm({
-    defaultValues: {
-      firstName: user?.firstName || '',
-      lastName: user?.lastName || '',
-      email: user?.email || '',
-      password: '',
-      confirmPassword: '',
-      gender: user?.gender || '',
-      userType: user?.userType || '',
-      roles: user?.roles || [],
-      isActive: user?.isActive ?? true,
-    },
+const UserFormModal = ({ 
+  isOpen, 
+  onClose, 
+  onSubmit, 
+  user = null, 
+  availableRoles = []
+}) => {
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    roles: [],
+    isActive: true
   });
+  const [errors, setErrors] = useState({});
 
-  const handleSubmit = async (data) => {
-    try {
-      setLoading(true);
-      const endpoint = isEditing ? `/api/users/${user.id}` : '/api/users';
-      const method = isEditing ? 'PUT' : 'POST';
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+        password: '',
+        confirmPassword: '',
+        roles: user.roles?.map(role => role.id || role) || [],
+        isActive: user.isActive !== undefined ? user.isActive : true
+      });
+    }
+  }, [user]);
 
-      // Remove confirmPassword from data before sending
-      const { confirmPassword, ...submitData } = data;
-      
-      // Only include password if it's provided (for editing)
-      if (!submitData.password) {
-        delete submitData.password;
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.firstName) newErrors.firstName = 'First name is required';
+    if (!formData.lastName) newErrors.lastName = 'Last name is required';
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email is invalid';
+    }
+    if (!user) { // Only validate password for new users
+      if (!formData.password) {
+        newErrors.password = 'Password is required';
+      } else if (formData.password.length < 8) {
+        newErrors.password = 'Password must be at least 8 characters';
       }
-
-      const response = await fetch(endpoint, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(submitData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save user');
+      if (formData.password !== formData.confirmPassword) {
+        newErrors.confirmPassword = 'Passwords do not match';
       }
+    }
+    if (formData.roles.length === 0) {
+      newErrors.roles = 'At least one role is required';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
-      toast({
-        title: "Success",
-        description: `User ${isEditing ? 'updated' : 'created'} successfully`,
-      });
-
-      onSuccess();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (validateForm()) {
+      onSubmit(formData);
     }
   };
 
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+    // Clear error when field is edited
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: undefined }));
+    }
+  };
+
+  const handleRoleChange = (roleId) => {
+    setFormData(prev => ({
+      ...prev,
+      roles: prev.roles.includes(roleId)
+        ? prev.roles.filter(id => id !== roleId)
+        : [...prev.roles, roleId]
+    }));
+    if (errors.roles) {
+      setErrors(prev => ({ ...prev, roles: undefined }));
+    }
+  };
+
+  if (!isOpen) return null;
+
   return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>
-            {isEditing ? 'Edit User' : 'Create New User'}
-          </DialogTitle>
-        </DialogHeader>
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex min-h-screen items-center justify-center p-4">
+        {/* Backdrop */}
+        <div 
+          className="fixed inset-0 bg-black/50 transition-opacity"
+          onClick={onClose}
+        />
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>First Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="First name" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Last Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Last name" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+        {/* Modal */}
+        <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b">
+            <div className="flex items-center space-x-2">
+              <UserCog className="h-6 w-6 text-asyv-green" />
+              <h2 className="text-xl font-semibold text-gray-900">
+                {user ? 'Edit User' : 'Create New User'}
+              </h2>
             </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-500"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
 
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input {...field} type="email" placeholder="Email address" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {!isEditing && (
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="password" placeholder="Password" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Confirm Password</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="password" placeholder="Confirm password" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              {/* First Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  First Name
+                </label>
+                <div className="mt-1 relative">
+                  <input
+                    type="text"
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    className={`block w-full rounded-md border ${
+                      errors.firstName ? 'border-red-300' : 'border-gray-300'
+                    } pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-1 ${
+                      errors.firstName 
+                        ? 'focus:ring-red-500 focus:border-red-500' 
+                        : 'focus:ring-asyv-green focus:border-asyv-green'
+                    }`}
+                  />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <UserCircle className={`h-5 w-5 ${
+                      errors.firstName ? 'text-red-400' : 'text-gray-400'
+                    }`} />
+                  </div>
+                </div>
+                {errors.firstName && (
+                  <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>
+                )}
               </div>
-            )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="gender"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Gender</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {GENDERS.map(gender => (
-                          <SelectItem key={gender} value={gender}>
-                            {gender}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
+              {/* Last Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Last Name
+                </label>
+                <div className="mt-1 relative">
+                  <input
+                    type="text"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    className={`block w-full rounded-md border ${
+                      errors.lastName ? 'border-red-300' : 'border-gray-300'
+                    } pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-1 ${
+                      errors.lastName 
+                        ? 'focus:ring-red-500 focus:border-red-500' 
+                        : 'focus:ring-asyv-green focus:border-asyv-green'
+                    }`}
+                  />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <UserCircle className={`h-5 w-5 ${
+                      errors.lastName ? 'text-red-400' : 'text-gray-400'
+                    }`} />
+                  </div>
+                </div>
+                {errors.lastName && (
+                  <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>
                 )}
-              />
+              </div>
 
-              <FormField
-                control={form.control}
-                name="userType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>User Type</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select user type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {USER_TYPES.map(type => (
-                          <SelectItem key={type} value={type}>
-                            {type}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
+              {/* Email */}
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Email Address
+                </label>
+                <div className="mt-1 relative">
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className={`block w-full rounded-md border ${
+                      errors.email ? 'border-red-300' : 'border-gray-300'
+                    } pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-1 ${
+                      errors.email 
+                        ? 'focus:ring-red-500 focus:border-red-500' 
+                        : 'focus:ring-asyv-green focus:border-asyv-green'
+                    }`}
+                  />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Mail className={`h-5 w-5 ${
+                      errors.email ? 'text-red-400' : 'text-gray-400'
+                    }`} />
+                  </div>
+                </div>
+                {errors.email && (
+                  <p className="mt-1 text-sm text-red-600">{errors.email}</p>
                 )}
-              />
+              </div>
+
+              {/* Password Fields - Only show for new users */}
+              {!user && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Password
+                    </label>
+                    <div className="mt-1 relative">
+                      <input
+                        type="password"
+                        name="password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        className={`block w-full rounded-md border ${
+                          errors.password ? 'border-red-300' : 'border-gray-300'
+                        } pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-1 ${
+                          errors.password 
+                            ? 'focus:ring-red-500 focus:border-red-500' 
+                            : 'focus:ring-asyv-green focus:border-asyv-green'
+                        }`}
+                      />
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Key className={`h-5 w-5 ${
+                          errors.password ? 'text-red-400' : 'text-gray-400'
+                        }`} />
+                      </div>
+                    </div>
+                    {errors.password && (
+                      <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Confirm Password
+                    </label>
+                    <div className="mt-1 relative">
+                      <input
+                        type="password"
+                        name="confirmPassword"
+                        value={formData.confirmPassword}
+                        onChange={handleChange}
+                        className={`block w-full rounded-md border ${
+                          errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
+                        } pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-1 ${
+                          errors.confirmPassword 
+                            ? 'focus:ring-red-500 focus:border-red-500' 
+                            : 'focus:ring-asyv-green focus:border-asyv-green'
+                        }`}
+                      />
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Key className={`h-5 w-5 ${
+                          errors.confirmPassword ? 'text-red-400' : 'text-gray-400'
+                        }`} />
+                      </div>
+                    </div>
+                    {errors.confirmPassword && (
+                      <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* Roles */}
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Roles
+                </label>
+                <div className="space-y-2">
+                  {availableRoles.map(role => (
+                    <label
+                      key={role.id}
+                      className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.roles.includes(role.id)}
+                        onChange={() => handleRoleChange(role.id)}
+                        className="h-4 w-4 text-asyv-green border-gray-300 rounded focus:ring-asyv-green"
+                      />
+                      <div className="flex items-center space-x-2">
+                        <Shield className="h-5 w-5 text-asyv-green" />
+                        <span className="font-medium text-gray-900">{role.name}</span>
+                      </div>
+                      <span className="text-sm text-gray-500">{role.description}</span>
+                    </label>
+                  ))}
+                </div>
+                {errors.roles && (
+                  <p className="mt-1 text-sm text-red-600">{errors.roles}</p>
+                )}
+              </div>
+
+              {/* Active Status */}
+              <div className="sm:col-span-2">
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    name="isActive"
+                    checked={formData.isActive}
+                    onChange={handleChange}
+                    className="h-4 w-4 text-asyv-green border-gray-300 rounded focus:ring-asyv-green"
+                  />
+                  <label className="text-sm text-gray-700">Active Account</label>
+                </div>
+              </div>
             </div>
 
-            <FormField
-              control={form.control}
-              name="roles"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Roles</FormLabel>
-                  <Select 
-                    onValueChange={(value) => field.onChange([value])} 
-                    defaultValue={field.value[0]}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {ROLES.map(role => (
-                        <SelectItem key={role} value={role}>
-                          {role}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <DialogFooter className="gap-2">
-              <Button type="button" variant="outline" onClick={onClose}>
+            {/* Form Actions */}
+            <div className="flex items-center justify-end space-x-3 pt-6 border-t">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onClose}
+              >
                 Cancel
               </Button>
-              <Button 
-                type="submit" 
-                className="bg-asyv-green hover:bg-asyv-green-dark"
-                disabled={loading}
+              <Button
+                type="submit"
               >
-                {loading ? 'Saving...' : (isEditing ? 'Update' : 'Create')}
+                {user ? 'Update User' : 'Create User'}
               </Button>
-            </DialogFooter>
+            </div>
           </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </div>
+    </div>
   );
 };
 
