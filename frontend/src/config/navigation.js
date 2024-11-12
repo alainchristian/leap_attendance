@@ -1,4 +1,3 @@
-// src/config/navigation.js
 import {
     Home,
     Users,

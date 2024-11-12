@@ -44,13 +44,12 @@ const LoginPage = ({ onLogin }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
-
     setIsLoading(true);
     try {
       await onLogin(formData);
     } catch (error) {
       setErrors({
-        submit: 'Invalid email or password'
+        submit: error.response?.data?.message || 'Invalid email or password'
       });
     } finally {
       setIsLoading(false);
@@ -74,7 +73,6 @@ const LoginPage = ({ onLogin }) => {
           required
           placeholder="Enter your email"
         />
-
         <Input
           label="Password"
           type="password"
@@ -99,7 +97,6 @@ const LoginPage = ({ onLogin }) => {
               Remember me
             </label>
           </div>
-
           <button
             type="button"
             className="text-sm font-medium text-asyv-green hover:text-asyv-green-dark"
@@ -130,8 +127,6 @@ const LoginPage = ({ onLogin }) => {
         >
           Sign in
         </Button>
-
-     
       </form>
     </AuthLayout>
   );

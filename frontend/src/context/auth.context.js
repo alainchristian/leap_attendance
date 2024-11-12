@@ -1,175 +1,8 @@
-// src/context/auth.context.js
-import { createContext, useContext, useState, useEffect } from 'react';
-import api from '../services/api';
-import { ROLE_PERMISSIONS, PERMISSIONS } from '../utils/permissions';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
-export const AuthContext = createContext({});
-
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    const loadStoredAuth = async () => {
-      try {
-        const storedToken = localStorage.getItem('@ASYVAuth:token');
-        if (storedToken) {
-          api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-          const response = await api.get('/auth/me');
-          setUser(response.data.user);
-          console.log('Auth State Loaded:', {
-            user: response.data.user.email,
-            roles: response.data.user.roles?.map(r => r.name),
-            permissions: response.data.user.roles?.flatMap(r => 
-              ROLE_PERMISSIONS[r.name] || []
-            )
-          });
-        }
-      } catch (error) {
-        console.error('Auth Load Error:', {
-          message: error.message,
-          status: error.response?.status,
-          data: error.response?.data
-        });
-        setError(error.message);
-        localStorage.removeItem('@ASYVAuth:token');
-        delete api.defaults.headers.common['Authorization'];
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadStoredAuth();
-  }, []);
-
-  const login = async (credentials) => {
-    try {
-      setError(null);
-      const response = await api.post('/auth/login', credentials);
-      const { token } = response.data;
-
-      localStorage.setItem('@ASYVAuth:token', token);
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-      const userResponse = await api.get('/auth/me');
-      const userData = userResponse.data.user;
-      setUser(userData);
-
-      console.log('Login Successful:', {
-        user: userData.email,
-        roles: userData.roles?.map(r => r.name),
-        permissions: userData.roles?.flatMap(r => ROLE_PERMISSIONS[r.name] || [])
-      });
-      
-      return true;
-    } catch (error) {
-      console.error('Login Error:', {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data
-      });
-      setError(error.response?.data?.message || 'Login failed');
-      return false;
-    }
-  };
-
-  const logout = async () => {
-    try {
-      await api.post('/auth/logout');
-    } catch (error) {
-      console.error('Logout Error:', error);
-    } finally {
-      localStorage.removeItem('@ASYVAuth:token');
-      delete api.defaults.headers.common['Authorization'];
-      setUser(null);
-      setError(null);
-    }
-  };
-
-  const getUserRoles = () => {
-    return user?.roles?.map(role => role.name) || [];
-  };
-
-  const hasRole = (roleName) => {
-    return getUserRoles().includes(roleName);
-  };
-
-  const isAdmin = () => hasRole('Admin');
-
-  const hasPermission = (permission) => {
-    if (!permission) return true;
-    
-    const userRoles = getUserRoles();
-    if (!userRoles.length) {
-      console.log('No roles found for user:', user?.email);
-      return false;
-    }
-
-    // Admin has all permissions
-    if (userRoles.includes('Admin')) {
-      console.log('Admin access granted:', {
-        user: user?.email,
-        permission
-      });
-      return true;
-    }
-
-    // Check permissions from all roles
-    const hasRequiredPermission = userRoles.some(roleName => {
-      const rolePermissions = ROLE_PERMISSIONS[roleName] || [];
-      return rolePermissions.includes(permission);
-    });
-
-    console.log('Permission Check:', {
-      permission,
-      user: user?.email,
-      roles: userRoles,
-      result: hasRequiredPermission,
-      availablePermissions: userRoles.flatMap(role => ROLE_PERMISSIONS[role] || [])
-    });
-
-    return hasRequiredPermission;
-  };
-
-  const hasAnyPermission = (permissions) => {
-    if (isAdmin()) return true;
-    return permissions.some(permission => hasPermission(permission));
-  };
-
-  const hasAllPermissions = (permissions) => {
-    if (isAdmin()) return true;
-    return permissions.every(permission => hasPermission(permission));
-  };
-
-  // Get all permissions for the current user
-  const getUserPermissions = () => {
-    return getUserRoles().flatMap(role => ROLE_PERMISSIONS[role] || []);
-  };
-
-  const value = {
-    user,
-    loading,
-    error,
-    isAuthenticated: !!user,
-    login,
-    logout,
-    hasRole,
-    isAdmin,
-    hasPermission,
-    hasAnyPermission,
-    hasAllPermissions,
-    getUserRoles,
-    getUserPermissions,
-    clearError: () => setError(null)
-  };
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
+const AuthContext = createContext(null);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -177,6 +10,92 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+};
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      const response = await axios.get('/api/auth/me', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setUser(response.data.user);
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      localStorage.removeItem('token');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const login = async (credentials) => {
+    try {
+      const response = await axios.post('/api/auth/login', credentials);
+      const { token, user } = response.data;
+
+      localStorage.setItem('token', token);
+      setUser(user);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+      return true;
+    } catch (error) {
+      console.error('Login failed:', error);
+      throw error;
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem('token');
+    delete axios.defaults.headers.common['Authorization'];
+    setUser(null);
+    navigate('/login', { replace: true });
+  };
+
+  const hasPermission = (permission) => {
+    if (!user || !user.roles) return false;
+    return user.roles.some(role => 
+      role.permissions?.some(p => p.name === permission)
+    );
+  };
+
+  const hasAnyPermission = (permissions) => {
+    return permissions.some(permission => hasPermission(permission));
+  };
+
+  const hasAllPermissions = (permissions) => {
+    return permissions.every(permission => hasPermission(permission));
+  };
+
+  const value = {
+    user,
+    isAuthenticated: !!user,
+    loading,
+    login,
+    logout,
+    hasPermission,
+    hasAnyPermission,
+    hasAllPermissions
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export default AuthContext;

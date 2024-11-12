@@ -1,185 +1,87 @@
-// src/components/navigation/CollapsibleNavItem.jsx
-import React, { useState, useEffect, useRef } from 'react';
-import { ChevronDown } from 'lucide-react';
-import { useAuth } from '../../context/auth.context';
-import { ROLE_PERMISSIONS } from '../../utils/permissions';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 
-const CollapsibleNavItem = ({ item, isActive, onNavigate }) => {
+const CollapsibleNavItem = ({ item, isActive, onCloseSidebar }) => {
   const [isOpen, setIsOpen] = useState(isActive);
-  const menuRef = useRef(null);
-  const { hasPermission, getUserRoles, user } = useAuth();
+  const location = useLocation();
 
-  const hasSubItems = item.subItems && item.subItems.length > 0;
-  const Icon = item.icon;
-  const userRoles = getUserRoles();
-
-  // Debug permissions with enhanced logging
+  // Update open state when active state changes
   useEffect(() => {
-    console.log('Navigation Item Permissions:', {
-      item: {
-        name: item.name,
-        permission: item.permission,
-        hasSubItems,
-        subItemsCount: item.subItems?.length
-      },
-      user: {
-        email: user?.email,
-        roles: userRoles,
-        rolePermissions: userRoles.map(role => ({
-          role,
-          permissions: ROLE_PERMISSIONS[role]
-        }))
-      },
-      access: {
-        hasPermission: !item.permission || hasPermission(item.permission),
-        visibleSubItems: hasSubItems ? 
-          item.subItems.filter(subItem => !subItem.permission || hasPermission(subItem.permission)).length : 0
-      }
-    });
-  }, [item, hasPermission, userRoles, user, hasSubItems]);
-
-  // Permission check for main item
-  if (item.permission && !hasPermission(item.permission)) {
-    console.log(`Access Denied: ${item.name} requires ${item.permission}`);
-    return null;
-  }
-
-  // Check permissions for subitems
-  const visibleSubItems = hasSubItems 
-    ? item.subItems.filter(subItem => {
-        const hasAccess = !subItem.permission || hasPermission(subItem.permission);
-        if (!hasAccess) {
-          console.log(`Subitem Hidden: ${subItem.name} requires ${subItem.permission}`);
-        }
-        return hasAccess;
-      })
-    : [];
-
-  if (hasSubItems && visibleSubItems.length === 0) {
-    console.log(`No accessible subitems for ${item.name}`);
-    return null;
-  }
-
-  // Keep submenu open if parent or any child is active
-  useEffect(() => {
-    if (isActive || (item.subItems && item.subItems.some(subItem => subItem.current))) {
+    if (isActive) {
       setIsOpen(true);
     }
-  }, [isActive, item.subItems]);
+  }, [isActive]);
 
-  // Handle click outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        // Don't auto-close on desktop
-        if (window.innerWidth < 1024) {
-          setIsOpen(false);
-        }
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-    };
-  }, []);
-
-  const handleMainClick = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (hasSubItems) {
+  const handleClick = () => {
+    if (item.subItems) {
       setIsOpen(!isOpen);
     } else {
-      onNavigate(item.name);
+      onCloseSidebar?.();
     }
   };
 
-  const handleSubItemClick = (e, subItem) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const isItemActive = (href) => location.pathname === href;
 
-    if (subItem.permission && !hasPermission(subItem.permission)) {
-      console.log(`Access Denied: ${subItem.name} requires ${subItem.permission}`);
-      return;
-    }
-   
-    if (window.innerWidth < 1024) {
-      setIsOpen(false);
-    }
-   
-    onNavigate(subItem.name);
-  };
+  // Base classes for menu items
+  const baseClasses = "flex items-center w-full px-3 py-2 text-sm font-medium rounded-md transition-colors duration-150";
+  const activeClasses = "text-white bg-asyv-green";
+  const inactiveClasses = "text-gray-300 hover:text-white hover:bg-asyv-green-dark";
 
-  return (
-    <div className="relative space-y-1" ref={menuRef}>
-      <button
-        onClick={handleMainClick}
-        type="button"
-        className={`
-          group flex items-center justify-between px-3 py-2
-          text-sm font-medium rounded-lg w-full
-          ${isActive && !hasSubItems
-            ? 'bg-asyv-green text-white'
-            : 'text-white hover:bg-asyv-green-light'
-          }
-          transition-colors duration-150
-          touch-manipulation
-          z-20
-        `}
-      >
-        <div className="flex items-center">
-          <Icon className="mr-3 h-5 w-5" />
-          <span>{item.name}</span>
-        </div>
-        {hasSubItems && visibleSubItems.length > 0 && (
-          <ChevronDown
-            className={`h-4 w-4 transition-transform duration-200 ease-in-out
-              ${isOpen ? 'transform rotate-180' : ''}
-            `}
-          />
-        )}
-      </button>
-      
-      {hasSubItems && visibleSubItems.length > 0 && (
-        <div
-          className={`
-            overflow-hidden transition-all duration-200 ease-in-out
-            ${isOpen ? 'max-h-[500px] opacity-100 visible' : 'max-h-0 opacity-0 invisible'}
-            relative z-10
-          `}
+  // If item has subItems, render as collapsible section
+  if (item.subItems) {
+    const hasActiveChild = item.subItems.some(subItem => isItemActive(subItem.href));
+
+    return (
+      <div className="space-y-1">
+        <button
+          onClick={handleClick}
+          className={`${baseClasses} justify-between ${hasActiveChild ? activeClasses : inactiveClasses}`}
         >
-          <div className="pl-4 space-y-1 py-1">
-            {visibleSubItems.map((subItem, index) => {
-              const SubIcon = subItem.icon;
-              const isSubItemActive = subItem.current;
-              
-              return (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={(e) => handleSubItemClick(e, subItem)}
-                  className={`
-                    group flex items-center py-2 px-3 text-sm font-medium
-                    rounded-lg w-full transition-colors duration-150
-                    ${isSubItemActive
-                      ? 'bg-asyv-green bg-opacity-75 text-white'
-                      : 'text-white hover:bg-asyv-green-light'
-                    }
-                    touch-manipulation
-                  `}
-                >
-                  {SubIcon && <SubIcon className="mr-3 h-4 w-4" />}
-                  {subItem.name}
-                </button>
-              );
-            })}
+          <div className="flex items-center">
+            {item.icon && <item.icon className="mr-3 h-5 w-5" />}
+            <span>{item.name}</span>
           </div>
-        </div>
-      )}
-    </div>
+          {isOpen ? (
+            <ChevronDown className="h-4 w-4" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
+          )}
+        </button>
+
+        {isOpen && item.subItems && (
+          <div className="ml-4 space-y-1">
+            {item.subItems.map((subItem) => (
+              <Link
+                key={subItem.name}
+                to={subItem.href}
+                className={`${baseClasses} pl-5 ${
+                  isItemActive(subItem.href) ? activeClasses : inactiveClasses
+                }`}
+                onClick={onCloseSidebar}
+              >
+                {subItem.icon && <subItem.icon className="mr-3 h-5 w-5" />}
+                <span>{subItem.name}</span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // For items without subItems, render as simple link
+  return (
+    <Link
+      to={item.href}
+      className={`${baseClasses} ${
+        isItemActive(item.href) ? activeClasses : inactiveClasses
+      }`}
+      onClick={onCloseSidebar}
+    >
+      {item.icon && <item.icon className="mr-3 h-5 w-5" />}
+      <span>{item.name}</span>
+    </Link>
   );
 };
 
