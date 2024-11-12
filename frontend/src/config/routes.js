@@ -4,7 +4,7 @@ import { useAuth } from '../context/auth.context';
 import DashboardLayout from '../layouts/DashboardLayout';
 import LoginPage from '../pages/auth/Login';
 import Dashboard from '../pages/dashboard/Dashboard';
-import UnauthorizedPage from '../pages/error/Unauthorized';
+import UnauthorizedPage from '../components/error/Unauthorized';
 import { PERMISSIONS } from '../utils/permissions';
 
 // Import pages directly
@@ -39,7 +39,9 @@ const ProtectedRoute = ({ element: Element, permission, permissions, requireAll 
     loading, 
     hasPermission, 
     hasAnyPermission, 
-    hasAllPermissions
+    hasAllPermissions,
+    isAdmin,
+    user 
   } = useAuth();
 
   if (loading) {
@@ -47,23 +49,53 @@ const ProtectedRoute = ({ element: Element, permission, permissions, requireAll 
   }
 
   if (!isAuthenticated) {
+    console.log('Not authenticated, redirecting to login'); // Debug log
     return <Navigate to="/login" replace />;
   }
 
-  if (permission && !hasPermission(permission)) {
-    return <Navigate to="/unauthorized" replace />;
+  // Special case for admin users - they have access to everything
+  if (isAdmin()) {
+    console.log('User is admin, granting access'); // Debug log
+    return <Element />;
   }
 
+  // Check specific permission
+  if (permission) {
+    console.log('Checking permission for route:', { 
+      permission, 
+      user,
+      roles: user?.roles,
+      permissions: user?.roles?.flatMap(r => r.permissions?.map(p => p.name) || [])
+    }); // Debug log
+
+    if (!hasPermission(permission)) {
+      console.log('Permission denied:', permission); // Debug log
+      return <Navigate to="/unauthorized" replace />;
+    }
+  }
+
+  // Check multiple permissions
   if (permissions) {
     const hasAccess = requireAll
       ? hasAllPermissions(permissions)
       : hasAnyPermission(permissions);
 
+    console.log('Checking multiple permissions:', { 
+      permissions, 
+      requireAll, 
+      hasAccess,
+      user,
+      roles: user?.roles,
+      userPermissions: user?.roles?.flatMap(r => r.permissions?.map(p => p.name) || [])
+    }); // Debug log
+
     if (!hasAccess) {
+      console.log('Multiple permissions check failed'); // Debug log
       return <Navigate to="/unauthorized" replace />;
     }
   }
 
+  console.log('Access granted to route'); // Debug log
   return <Element />;
 };
 
@@ -102,61 +134,228 @@ const AppRoutes = () => {
 
         {/* Family Routes */}
         <Route path="/families">
-          <Route index element={<ProtectedRoute element={Families} permission={PERMISSIONS.FAMILY_VIEW} />} />
-          <Route path="create" element={<ProtectedRoute element={CreateFamily} permission={PERMISSIONS.FAMILY_CREATE} />} />
+          <Route 
+            index 
+            element={
+              <ProtectedRoute 
+                element={Families} 
+                permission={PERMISSIONS.FAMILY_VIEW} 
+              />
+            } 
+          />
+          <Route 
+            path="create" 
+            element={
+              <ProtectedRoute 
+                element={CreateFamily} 
+                permission={PERMISSIONS.FAMILY_CREATE} 
+              />
+            } 
+          />
         </Route>
 
         {/* Student Routes */}
         <Route path="/students">
-          <Route index element={<ProtectedRoute element={Students} permission={PERMISSIONS.STUDENT_VIEW} />} />
-          <Route path=":id" element={<ProtectedRoute element={StudentDetails} permission={PERMISSIONS.STUDENT_VIEW} />} />
-          <Route path="create" element={<ProtectedRoute element={CreateStudent} permission={PERMISSIONS.STUDENT_CREATE} />} />
-          <Route path="groups" element={<ProtectedRoute element={StudentGroups} permission={PERMISSIONS.STUDENT_EDIT} />} />
+          <Route 
+            index 
+            element={
+              <ProtectedRoute 
+                element={Students} 
+                permission={PERMISSIONS.STUDENT_VIEW} 
+              />
+            } 
+          />
+          <Route 
+            path=":id" 
+            element={
+              <ProtectedRoute 
+                element={StudentDetails} 
+                permission={PERMISSIONS.STUDENT_VIEW} 
+              />
+            } 
+          />
+          <Route 
+            path="create" 
+            element={
+              <ProtectedRoute 
+                element={CreateStudent} 
+                permission={PERMISSIONS.STUDENT_CREATE} 
+              />
+            } 
+          />
+          <Route 
+            path="groups" 
+            element={
+              <ProtectedRoute 
+                element={StudentGroups} 
+                permission={PERMISSIONS.STUDENT_EDIT} 
+              />
+            } 
+          />
         </Route>
 
         {/* EP Programs Routes */}
         <Route path="/programs">
-          <Route path="sports" element={<ProtectedRoute element={() => <Programs type="sports" />} permission={PERMISSIONS.EP_VIEW} />} />
-          <Route path="arts" element={<ProtectedRoute element={() => <Programs type="arts" />} permission={PERMISSIONS.EP_VIEW} />} />
-          <Route path="science" element={<ProtectedRoute element={() => <Programs type="science" />} permission={PERMISSIONS.EP_VIEW} />} />
-          <Route path="create" element={<ProtectedRoute element={CreateProgram} permission={PERMISSIONS.EP_CREATE} />} />
-          <Route path=":id" element={<ProtectedRoute element={ProgramDetails} permission={PERMISSIONS.EP_VIEW} />} />
+          <Route 
+            path="sports" 
+            element={
+              <ProtectedRoute 
+                element={() => <Programs type="sports" />} 
+                permission={PERMISSIONS.EP_VIEW} 
+              />
+            } 
+          />
+          <Route 
+            path="arts" 
+            element={
+              <ProtectedRoute 
+                element={() => <Programs type="arts" />} 
+                permission={PERMISSIONS.EP_VIEW} 
+              />
+            } 
+          />
+          <Route 
+            path="science" 
+            element={
+              <ProtectedRoute 
+                element={() => <Programs type="science" />} 
+                permission={PERMISSIONS.EP_VIEW} 
+              />
+            } 
+          />
+          <Route 
+            path="create" 
+            element={
+              <ProtectedRoute 
+                element={CreateProgram} 
+                permission={PERMISSIONS.EP_CREATE} 
+              />
+            } 
+          />
+          <Route 
+            path=":id" 
+            element={
+              <ProtectedRoute 
+                element={ProgramDetails} 
+                permission={PERMISSIONS.EP_VIEW} 
+              />
+            } 
+          />
         </Route>
 
         {/* EP Rotations Routes */}
         <Route path="/rotations">
-          <Route path="current" element={<ProtectedRoute element={CurrentRotation} permission={PERMISSIONS.ACADEMIC_VIEW} />} />
-          <Route path="schedule" element={<ProtectedRoute element={RotationSchedule} permission={PERMISSIONS.ACADEMIC_VIEW} />} />
-          <Route path="manage" element={<ProtectedRoute element={ManageRotations} permission={PERMISSIONS.ACADEMIC_MANAGE} />} />
+          <Route 
+            path="current" 
+            element={
+              <ProtectedRoute 
+                element={CurrentRotation} 
+                permission={PERMISSIONS.ACADEMIC_VIEW} 
+              />
+            } 
+          />
+          <Route 
+            path="schedule" 
+            element={
+              <ProtectedRoute 
+                element={RotationSchedule} 
+                permission={PERMISSIONS.ACADEMIC_VIEW} 
+              />
+            } 
+          />
+          <Route 
+            path="manage" 
+            element={
+              <ProtectedRoute 
+                element={ManageRotations} 
+                permission={PERMISSIONS.ACADEMIC_MANAGE} 
+              />
+            } 
+          />
         </Route>
 
         {/* Attendance Routes */}
         <Route path="/attendance">
-          <Route path="take" element={<ProtectedRoute element={Attendance} permission={PERMISSIONS.ATTENDANCE_MARK} />} />
-          <Route path="records" element={<ProtectedRoute element={AttendanceRecords} permission={PERMISSIONS.ATTENDANCE_VIEW} />} />
-          <Route path="reports" element={<ProtectedRoute element={AttendanceReports} permission={PERMISSIONS.ATTENDANCE_REPORT} />} />
+          <Route 
+            path="take" 
+            element={
+              <ProtectedRoute 
+                element={Attendance} 
+                permission={PERMISSIONS.ATTENDANCE_MARK} 
+              />
+            } 
+          />
+          <Route 
+            path="records" 
+            element={
+              <ProtectedRoute 
+                element={AttendanceRecords} 
+                permission={PERMISSIONS.ATTENDANCE_VIEW} 
+              />
+            } 
+          />
+          <Route 
+            path="reports" 
+            element={
+              <ProtectedRoute 
+                element={AttendanceReports} 
+                permission={PERMISSIONS.ATTENDANCE_REPORT} 
+              />
+            } 
+          />
         </Route>
 
         {/* Reports Routes */}
         <Route path="/reports">
-          <Route path="attendance" element={<ProtectedRoute element={() => <Reports type="attendance" />} permission={PERMISSIONS.REPORT_VIEW_GENERAL} />} />
-          <Route path="programs" element={<ProtectedRoute element={() => <Reports type="programs" />} permission={PERMISSIONS.REPORT_VIEW_GENERAL} />} />
-          <Route path="students" element={<ProtectedRoute element={() => <Reports type="students" />} permission={PERMISSIONS.REPORT_VIEW_GENERAL} />} />
-          <Route path="export" element={<ProtectedRoute element={ExportData} permission={PERMISSIONS.REPORT_EXPORT} />} />
+          <Route 
+            path="attendance" 
+            element={
+              <ProtectedRoute 
+                element={() => <Reports type="attendance" />} 
+                permission={PERMISSIONS.REPORT_VIEW_GENERAL} 
+              />
+            } 
+          />
+          <Route 
+            path="programs" 
+            element={
+              <ProtectedRoute 
+                element={() => <Reports type="programs" />} 
+                permission={PERMISSIONS.REPORT_VIEW_GENERAL} 
+              />
+            } 
+          />
+          <Route 
+            path="students" 
+            element={
+              <ProtectedRoute 
+                element={() => <Reports type="students" />} 
+                permission={PERMISSIONS.REPORT_VIEW_GENERAL} 
+              />
+            } 
+          />
+          <Route 
+            path="export" 
+            element={
+              <ProtectedRoute 
+                element={ExportData} 
+                permission={PERMISSIONS.REPORT_EXPORT} 
+              />
+            } 
+          />
         </Route>
 
         {/* Settings Routes */}
         <Route path="/settings">
-          <Route 
-            path="users" 
+          <Route
+            path="users"
             element={
               <ProtectedRoute 
                 element={Users}
-                permission={PERMISSIONS.USER_VIEW}
-                permissions={[PERMISSIONS.USER_VIEW, PERMISSIONS.USER_EDIT]}
-                requireAll={false}
+                permissions={['user.view', 'user.edit']} // Allow either permission
+                requireAll={false} // Only need one of the permissions
               />
-            } 
+            }
           />
         </Route>
 

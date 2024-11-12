@@ -15,25 +15,8 @@ import CollapsibleNavItem from '../components/navigation/CollapsibleNavItem';
 
 const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, logout, hasPermission } = useAuth();
+  const { user, logout } = useAuth();
   const location = useLocation();
-
-  // Filter navigation items based on permissions
-  const filteredNavigation = navigation.filter(item => {
-    // If no permission required or has permission
-    if (!item.permission || hasPermission(item.permission)) {
-      // If item has subitems, filter them too
-      if (item.subItems) {
-        const filteredSubItems = item.subItems.filter(
-          subItem => !subItem.permission || hasPermission(subItem.permission)
-        );
-        // Only include item if it has visible subitems
-        return filteredSubItems.length > 0;
-      }
-      return true;
-    }
-    return false;
-  });
 
   const SearchBar = () => (
     <div className="relative w-full max-w-md">
@@ -61,35 +44,26 @@ const DashboardLayout = () => {
   );
 
   const NavigationSection = () => (
-    <div className="px-2 py-4 space-y-1">
-      {filteredNavigation.map((item) => {
-        // Check if this item or any of its subitems matches current path
+    <nav className="flex-1 space-y-1 px-2 py-4">
+      {navigation.map((item) => {
         const isActive = item.href === location.pathname ||
           item.subItems?.some(subItem => subItem.href === location.pathname);
 
         return (
           <CollapsibleNavItem
             key={item.name}
-            item={{
-              ...item,
-              // Filter subItems based on permissions
-              subItems: item.subItems?.filter(
-                subItem => !subItem.permission || hasPermission(subItem.permission)
-              )
-            }}
+            item={item}
             isActive={isActive}
             onCloseSidebar={() => setSidebarOpen(false)}
           />
         );
       })}
-    </div>
+    </nav>
   );
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 flex flex-col overflow-y-auto pt-1">
-        <NavigationSection />
-      </div>
+    <div className="h-0 flex-1 flex flex-col">
+      <NavigationSection />
       <div className="flex-shrink-0 flex border-t border-asyv-green p-4">
         <div className="flex items-center w-full">
           <AsyvAvatar
@@ -113,50 +87,69 @@ const DashboardLayout = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Mobile sidebar backdrop */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 lg:hidden"
+    <div className="h-screen flex overflow-hidden bg-gray-100">
+      {/* Sidebar for desktop */}
+      <div className="hidden lg:flex lg:flex-shrink-0">
+        <div className="flex flex-col w-64">
+          <div className="flex flex-col flex-1">
+            {/* Sidebar Header */}
+            <div className="flex h-16 flex-shrink-0 items-center bg-asyv-green px-4">
+              <LogoSection />
+            </div>
+            
+            {/* Sidebar Content */}
+            <div className="flex flex-1 flex-col overflow-y-auto bg-asyv-green-dark">
+              <SidebarContent />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile sidebar */}
+      <div
+        className={`fixed inset-0 z-40 lg:hidden ${
+          sidebarOpen ? '' : 'pointer-events-none'
+        }`}
+      >
+        {/* Overlay */}
+        <div
+          className={`fixed inset-0 bg-gray-600 ${
+            sidebarOpen ? 'opacity-75' : 'opacity-0'
+          } transition-opacity duration-300`}
           onClick={() => setSidebarOpen(false)}
         />
-      )}
 
-      {/* Sidebar */}
-      <div 
-        className={`
-          fixed inset-y-0 left-0 z-50 w-64 transform bg-asyv-green-dark transition duration-300 ease-in-out lg:static lg:translate-x-0
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        `}
-      >
-        {/* Logo section */}
-        <div className="flex h-16 items-center justify-between px-4 bg-asyv-green">
-          <LogoSection />
-          <button
-            className="lg:hidden text-white hover:text-asyv-orange"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <X className="h-6 w-6" />
-          </button>
+        {/* Sidebar panel */}
+        <div
+          className={`fixed inset-y-0 left-0 flex w-full max-w-xs flex-col bg-asyv-green-dark transform ${
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          } transition-transform duration-300`}
+        >
+          <div className="flex h-16 flex-shrink-0 items-center justify-between bg-asyv-green px-4">
+            <LogoSection />
+            <button
+              className="text-white hover:text-asyv-orange"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+          <SidebarContent />
         </div>
-        
-        {/* Sidebar content */}
-        <SidebarContent />
       </div>
 
       {/* Main content */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden lg:pl-64">
-        {/* Top navigation */}
-        <div className="flex-shrink-0 h-16 bg-white shadow-sm flex items-center">
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Top nav */}
+        <div className="relative z-10 flex h-16 flex-shrink-0 bg-white shadow">
           <button
-            className="px-4 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-asyv-green lg:hidden"
+            className="border-r border-gray-200 px-4 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-asyv-green lg:hidden"
             onClick={() => setSidebarOpen(true)}
           >
-            <span className="sr-only">Open sidebar</span>
             <Menu className="h-6 w-6" />
           </button>
-          
-          <div className="flex-1 px-4 flex justify-between">
+
+          <div className="flex flex-1 items-center justify-between px-4">
             <SearchBar />
             <div className="ml-4 flex items-center space-x-4">
               <button className="p-1 rounded-full text-gray-400 hover:text-asyv-green focus:outline-none">
@@ -168,7 +161,7 @@ const DashboardLayout = () => {
           </div>
         </div>
 
-        {/* Page content */}
+        {/* Main content area */}
         <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>
